@@ -49,7 +49,7 @@ namespace eval ::xotcl {
 	}
 	
 	proc _filterList {arguments globIndex list} {
-		if {[llength $arguments]<=$globIndex} {
+		if {[llength $arguments]>$globIndex} {
 			set ret [list]
 			set glob [lindex $arguments $globIndex]
 			foreach e $list {
@@ -193,7 +193,7 @@ namespace eval ::xotcl {
 	method volatile {} {
 		set ptr [namespace tail [self object]]
 		# potential problem, how to get rigth level, 2 works for regular case
-		set level 2
+		set level 4
 		uplevel $level [list set itcl-local-$ptr $ptr]
 		uplevel $level [list trace add variable xotcl-local-$ptr unset "::xotcl::_delete_helper [self object]"]
 	}
@@ -254,7 +254,7 @@ namespace eval ::xotcl {
 			return $children
 		}
 		procs {
-			return [info object methods [self object]]
+			return [::xotcl::_filterList $args 0 [info object methods [self object]]]
 		}
 		body {
 			# TODO check args count
@@ -291,6 +291,15 @@ namespace eval ::xotcl {
 		filter {
 			return [info object filters [self object]]
 		}
+        pre {
+            return
+        }
+        post {
+            return
+        }
+        nonposargs {
+            return
+        }
 		default {
 			error "unsupported obj info $infocmd"
 		}
@@ -309,7 +318,10 @@ namespace eval ::xotcl {
 		::xotcl::_autoname $name
 	}
 	method unknown {args} {
-		# handle calls to subcommand
+		if {[llength $args]==0} {
+            return [self object]
+        }
+        # handle calls to subcommand
 		if {[llength $args]>=2} {
 			set subobj [self namespace]::[lindex $args 0]
 			if {[info object isa object $subobj]} {
@@ -425,7 +437,11 @@ namespace eval ::xotcl {
 			return
 		}
 		superclass {
-			return [info class superclass [self object]]
+            if {[self object] eq "::xotcl::Object"} {
+                 return            
+            } else {
+                 return [info class superclass [self object]]
+            }
 		}
 		instances {
 			return [info class instances [self object]]
@@ -434,16 +450,19 @@ namespace eval ::xotcl {
 			return [info class superclasses [self object]]
 		}
 		instprocs {
-			# TODO filter
-			return [info class methods [self object]]
+			return [::xotcl::_filterList $args 0 [info class methods [self object]]]
 		}
 		instbody {
 			# TODO check args count
 			return [lindex [info class definition [self object] [lindex $args 0]] 1]
 		}
 		instargs {
-			set ret [list]
-			foreach a [lindex [info class definition [self object] [lindex $args 0]] 0] {
+            set methodname [lindex $args 0]
+            if {$methodname eq "destroy"} {
+                 return
+            }			
+            set ret [list]
+			foreach a [lindex [info class definition [self object] $methodname] 0] {
 				lappend ret [lindex $a 0]
 			}
 			return $ret
@@ -474,6 +493,15 @@ namespace eval ::xotcl {
 			}
 			return $children
 		}
+        instnonposargs {
+            return
+        }
+        instpost {
+            return
+        }
+        instpre {
+            return
+        }
 		default {
 			return [next $infocmd {*}$args]
 		}
@@ -486,7 +514,7 @@ namespace eval ::xotcl {
 		expr {[info object isa object $obj] && [info object isa typeof $obj ::xotcl::Object]}
 	}
 	method isclass {obj} {
-		info object isa class $obj
+		expr {[info object isa object $obj] && [info object isa class $obj]}
 	}
 	method instmixin {args} {
 		if {[llength $args]>1} {

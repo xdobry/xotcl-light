@@ -363,7 +363,8 @@ tcltest::test {xotcl-1.9} {class api} -body {
 	T9 info heritage
 	if {[T9 info superclass] ne [T9 superclass]} { error "supeclass not match"}
 	if {"foo" ni [T9 info instprocs]} { error "foo not in instprocs"}
-	T9 info instprocs foo
+	if {[T9 info instprocs foo] eq ""} { error "foo is not in filter"}
+	if {[T9 info instprocs unfoo] ne ""} { error "filter does not work '[T9 info instprocs unfoo]'"}
 	T9 info instbody foo
 	T9 info instdefault foo a var
 	if {{a b} ne [T9 info instargs foo]} { error "foo arguments not match"}
@@ -413,6 +414,7 @@ tcltest::test {xotcl-1.11} {object new -volatile} -body {
 	}
 	T11 instproc test {} {
 		set i [T11A new -volatile]
+        $i foo
 		return $i
 	}
 	set t [T11 new]
@@ -459,17 +461,14 @@ tcltest::test {xotcl-1.121} {trace set} -body {
 
 }
 
+tcltest::test {xotcl-1.13} {object as command result full name} -body {
+    Class T13
+    set t [T13 new]
+    puts [$t]
+    $t destroy
+}
+
 
 tcltest::cleanupTests
 
-# TODO
-# parameters
-# mixins
-# wie kann man forward benutzen
-# kann man init als constructur verstehen , und destroy als destructor
-# wie funktionieren XOTcl slots und 
-# slot ist ein sub object in der classe um z.B parameter definition zu regeln
-# die instanzen bekommen in XOTcl sg. instparametercmd sind wahrscheinlich in c geschreiben
-# siehe http://wiki.tcl.tk/40639 
-# using forward für set array lappend append usw.
-# introspection (info)
+
